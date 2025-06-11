@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ứng dụng nhắn tin an toàn</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #e0f2f7; color: #333; line-height: 1.6; }
+        .container { max-width: 960px; margin: auto; background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+        .header { text-align: center; margin-bottom: 25px; }
+        h1, h2 { color: #007bff; margin-top: 0; }
+        h1 { font-size: 2.2em; }
+        h2 { font-size: 1.6em; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+        input[type="text"], input[type="password"], textarea, select {
+            width: calc(100% - 22px); padding: 12px; margin-bottom: 15px; border: 1px solid #ccd; border-radius: 6px; font-size: 1em;
+            box-sizing: border-box; /* Đảm bảo padding không làm tăng kích thước tổng thể */
+        }
+        button {
+            background-color: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer;
+            font-size: 1em; transition: background-color 0.3s ease; margin-right: 10px;
+        }
+        button:hover:not(:disabled) { background-color: #0056b3; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .form-group { margin-bottom: 15px; }
+        .status-message {
+            margin-top: 10px; padding: 10px; border-radius: 6px;
+            font-size: 0.9em; text-align: center;
+        }
+        .status-message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-message.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status-message.info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+        .chat-area {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            flex-grow: 1; /* Cho phép vùng chat mở rộng */
+        }
+        .users-panel {
+            flex: 0 0 200px; /* Cố định chiều rộng 200px */
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            max-height: 500px; /* Giới hạn chiều cao */
+            overflow-y: auto; /* Thêm thanh cuộn khi quá cao */
+        }
+        .users-panel h3 {
+            margin-top: 0;
+            color: #007bff;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .users-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .users-list li {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+        }
+        .users-list li:last-child {
+            border-bottom: none;
+        }
+        .users-list li.selected {
+            background-color: #e2f0ff;
+            font-weight: bold;
+            color: #0056b3;
+        }
+        .users-list li:hover:not(.selected) {
+            background-color: #f0f0f0;
+        }
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #28a745;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .chat-panel {
+            flex-grow: 1; /* Cho phép vùng chat chính mở rộng */
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+        .messages {
+            flex-grow: 1; /* Cho phép vùng tin nhắn mở rộng */
+            overflow-y: auto;
+            max-height: 400px; /* Giới hạn chiều cao */
+            border: 1px solid #eee;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            background-color: #fff;
+            display: flex;
+            flex-direction: column; /* Đảm bảo tin nhắn nằm ngang */
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            max-width: 80%;
+            word-wrap: break-word; /* Ngắt từ dài */
+        }
+        .my-message {
+            background-color: #e2f0ff;
+            align-self: flex-end; /* Căn phải */
+            text-align: right;
+            margin-left: auto; /* Đẩy sang phải */
+        }
+        .other-message {
+            background-color: #f0f2f5;
+            align-self: flex-start; /* Căn trái */
+            text-align: left;
+            margin-right: auto; /* Đẩy sang trái */
+        }
+        .message .timestamp {
+            font-size: 0.75em;
+            color: #888;
+            margin-top: 5px;
+            display: block;
+        }
+        .chat-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: auto; /* Đẩy xuống cuối */
+        }
+        .chat-controls textarea {
+            flex-grow: 1;
+            margin-bottom: 0; /* Loại bỏ margin-bottom mặc định */
+        }
+        .chat-controls button {
+            white-space: nowrap; /* Ngăn nút xuống dòng */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Ứng dụng nhắn tin an toàn</h1>
+            <p>Trạng thái kết nối: <span id="connectionStatus" style="font-weight: bold;">Đang kết nối...</span></p>
+            <p id="chatStatus" class="status-message"></p>
+        </div>
+
+        <div id="authSection">
+            <h2>Đăng nhập / Đăng ký</h2>
+            <div class="form-group">
+                <input type="text" id="usernameInput" placeholder="Tên người dùng">
+            </div>
+            <div class="form-group">
+                <input type="password" id="passwordInput" placeholder="Mật khẩu">
+            </div>
+            <div class="form-group">
+                <button id="loginButton">Đăng nhập</button>
+                <button id="registerButton">Đăng ký</button> </div>
+        </div>
+
+        <div id="chatSection" style="display: none;">
+            <h2>Chào mừng, <span id="loggedInUsername"></span>!</h2>
+            <div class="form-group">
+                <input type="text" id="aesKeyInput" placeholder="Nhập khóa AES (độ dài bất kỳ)">
+                <button id="setAesKeyButton">Đặt khóa AES</button>
+                <button id="logoutButton">Đăng xuất</button>
+            </div>
+
+            <div class="chat-area">
+                <div class="users-panel">
+                    <h3>Người dùng Online</h3>
+                    <ul id="onlineUsersList" class="users-list">
+                        </ul>
+                </div>
+                <div class="chat-panel">
+                    <h3>Trò chuyện với: <span id="currentRecipientDisplay">Chat chung</span></h3>
+                    <div id="messagesDiv" class="messages">
+                        </div>
+                    <div class="chat-controls">
+                        <textarea id="messageInput" placeholder="Nhập tin nhắn..." rows="3"></textarea>
+                        <input type="file" id="fileInput" style="display: none;"> <button id="attachFileButton">Đính kèm tệp</button> <button id="sendButton" disabled>Gửi</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const connectionStatus = document.getElementById('connectionStatus');
+        const chatStatus = document.getElementById('chatStatus');
+        const authSection = document.getElementById('authSection');
+        const chatSection = document.getElementById('chatSection');
+        const usernameInput = document.getElementById('usernameInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginButton = document.getElementById('loginButton');
+        const registerButton = document.getElementById('registerButton'); // Lấy nút đăng ký
+        const loggedInUsername = document.getElementById('loggedInUsername');
+        const aesKeyInput = document.getElementById('aesKeyInput');
+        const setAesKeyButton = document.getElementById('setAesKeyButton');
+        const logoutButton = document.getElementById('logoutButton');
+        const onlineUsersList = document.getElementById('onlineUsersList');
+        const currentRecipientDisplay = document.getElementById('currentRecipientDisplay');
+        const messagesDiv = document.getElementById('messagesDiv');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+
+        // New elements for file sending
+        const fileInput = document.getElementById('fileInput');
+        const attachFileButton = document.getElementById('attachFileButton');
+
+        let ws;
+        let currentUser = null;
+        let aesKey = null; // Khóa AES ở dạng CryptoKey
+        let currentRecipient = "all"; // Mặc định chat chung
+
+        const connectWebSocket = () => {
+            ws = new WebSocket("ws://localhost:8080");
+
+            ws.onopen = () => {
+                connectionStatus.textContent = "Đã kết nối";
+                connectionStatus.style.color = "green";
+                console.log("Đã kết nối đến WebSocket server.");
+                // Nếu đã có thông tin đăng nhập từ session/localStorage (nếu có)
+                // Cố gắng tự động xác thực lại ở đây nếu cần
+            };
+
+            ws.onmessage = async (event) => {
+                const data = JSON.parse(event.data);
+                console.log("Nhận được:", data);
+
+                switch (data.type) {
+                    case "auth_success":
+                        currentUser = usernameInput.value;
+                        loggedInUsername.textContent = currentUser;
+                        authSection.style.display = 'none';
+                        chatSection.style.display = 'block';
+                        displayStatus(chatStatus, `Chào mừng, ${currentUser}!`, 'success');
+                        // Yêu cầu lịch sử tin nhắn sau khi đăng nhập thành công
+                        ws.send(JSON.stringify({ type: "get_history" }));
+                        break;
+                    case "auth_fail":
+                        displayStatus(chatStatus, data.message, 'error');
+                        break;
+                    case "register_success": // Xử lý phản hồi đăng ký thành công
+                        displayStatus(chatStatus, data.message + " Vui lòng đăng nhập.", 'success');
+                        usernameInput.value = ''; // Xóa trường username
+                        passwordInput.value = ''; // Xóa trường password
+                        break;
+                    case "register_fail": // Xử lý phản hồi đăng ký thất bại
+                        displayStatus(chatStatus, data.message, 'error');
+                        break;
+                    case "user_list":
+                        updateOnlineUsers(data.users);
+                        break;
+                    case "new_message":
+                        // Giải mã tin nhắn và hiển thị
+                        const decrypted_msg = await decryptMessage(data.encrypted_msg, data.iv);
+                        displayMessage({ ...data, decrypted_msg: decrypted_msg });
+                        break;
+                    case "new_file": // New case for receiving files
+                        const decryptedFileName = await decryptMessage(data.encrypted_filename, data.iv_filename);
+                        const decryptedFileContent = await decryptMessage(data.encrypted_file_content, data.iv_file_content);
+                        displayFile({
+                            sender: data.sender,
+                            fileName: decryptedFileName,
+                            fileContent: decryptedFileContent, // This will be a base64 string
+                            fileType: data.file_type,
+                            timestamp: data.timestamp,
+                            recipient: data.recipient // Add recipient for private files
+                        });
+                        break;
+                    case "history":
+                        messagesDiv.innerHTML = ''; // Xóa lịch sử cũ trước khi tải mới
+                        for (const item of data.messages) {
+                            if (item.type === "text") {
+                                const decrypted_msg = await decryptMessage(item.encrypted_msg, item.iv);
+                                displayMessage({ ...item, decrypted_msg: decrypted_msg }, true);
+                            } else if (item.type === "file") {
+                                 const decryptedFileName = await decryptMessage(item.encrypted_filename, item.iv_filename);
+                                 // For history, we might not want to load full file content unless requested
+                                 // For this simple demo, we'll display a placeholder
+                                 displayFile({
+                                     sender: item.sender,
+                                     fileName: decryptedFileName,
+                                     fileType: item.file_type,
+                                     timestamp: item.timestamp,
+                                     recipient: item.recipient,
+                                     isHistory: true // Indicate it's from history
+                                 }, true); // Pass true for isHistory
+                            }
+                        }
+                        break;
+                    case "error":
+                        displayStatus(chatStatus, data.message, 'error');
+                        break;
+                    case "logout_success":
+                        currentUser = null;
+                        aesKey = null;
+                        authSection.style.display = 'block';
+                        chatSection.style.display = 'none';
+                        displayStatus(chatStatus, data.message, 'info');
+                        messagesDiv.innerHTML = ''; // Xóa tin nhắn cũ
+                        onlineUsersList.innerHTML = ''; // Xóa danh sách người dùng
+                        currentRecipient = "all";
+                        currentRecipientDisplay.textContent = "Chat chung";
+                        sendButton.disabled = true; // Vô hiệu hóa nút gửi
+                        aesKeyInput.disabled = false; // Bật lại input khóa
+                        aesKeyInput.value = ''; // Xóa khóa cũ
+                        break;
+                }
+            };
+
+            ws.onclose = () => {
+                connectionStatus.textContent = "Đã ngắt kết nối";
+                connectionStatus.style.color = "red";
+                console.log("Đã ngắt kết nối khỏi WebSocket server. Đang thử kết nối lại sau 3 giây...");
+                setTimeout(connectWebSocket, 3000); // Thử kết nối lại
+            };
+
+            ws.onerror = (error) => {
+                console.error("Lỗi WebSocket:", error);
+                connectionStatus.textContent = "Lỗi kết nối";
+                connectionStatus.style.color = "orange";
+            };
+        };
+
+        // --- Cryptography Functions ---
+        // Chuyển đổi ArrayBuffer sang Base64 string
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        // Chuyển đổi Base64 string sang ArrayBuffer
+        function base64ToArrayBuffer(base64) {
+            const binary_string = atob(base64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        // Mã hóa tin nhắn
+        async function encryptMessage(message) {
+            if (!aesKey) {
+                console.error("Khóa AES chưa được thiết lập.");
+                displayStatus(chatStatus, "Khóa AES chưa được thiết lập.", 'error');
+                return null;
+            }
+            const iv = crypto.getRandomValues(new Uint8Array(16)); // IV 16 bytes
+            const encoded = new TextEncoder().encode(message);
+            try {
+                const encrypted = await crypto.subtle.encrypt(
+                    {
+                        name: "AES-CBC",
+                        iv: iv,
+                    },
+                    aesKey,
+                    encoded
+                );
+                return {
+                    encrypted_msg: arrayBufferToBase64(encrypted),
+                    iv: arrayBufferToBase64(iv)
+                };
+            } catch (e) {
+                console.error("Lỗi mã hóa:", e);
+                displayStatus(chatStatus, "Lỗi mã hóa tin nhắn. Kiểm tra khóa AES.", 'error');
+                return null;
+            }
+        }
+
+        // Giải mã tin nhắn
+        async function decryptMessage(encryptedBase64, ivBase64) {
+            if (!aesKey) {
+                console.error("Khóa AES chưa được thiết lập.");
+                displayStatus(chatStatus, "Khóa AES chưa được thiết lập.", 'error');
+                return "Không thể giải mã: Thiếu khóa AES.";
+            }
+            try {
+                const encryptedBuffer = base64ToArrayBuffer(encryptedBase64);
+                const ivBuffer = base64ToArrayBuffer(ivBase64);
+                const decrypted = await crypto.subtle.decrypt(
+                    {
+                        name: "AES-CBC",
+                        iv: ivBuffer,
+                    },
+                    aesKey,
+                    encryptedBuffer
+                );
+                return new TextDecoder().decode(decrypted);
+            } catch (e) {
+                console.error("Lỗi giải mã:", e);
+                displayStatus(chatStatus, "Lỗi giải mã tin nhắn. Khóa AES không khớp hoặc tin nhắn bị hỏng.", 'error');
+                return "Không thể giải mã tin nhắn.";
+            }
+        }
+
+        // Tạo khóa AES từ chuỗi mật khẩu (sử dụng PBKDF2 để tạo khóa 256-bit từ bất kỳ chuỗi nào)
+        async function deriveKey(passwordString) {
+            const salt = new TextEncoder().encode('some_fixed_salt_for_demo'); // Salt cố định cho demo, trong thực tế nên ngẫu nhiên và lưu trữ
+            const keyMaterial = await crypto.subtle.importKey(
+                "raw",
+                new TextEncoder().encode(passwordString),
+                { name: "PBKDF2" },
+                false,
+                ["deriveKey"]
+            );
+            return crypto.subtle.deriveKey(
+                {
+                    name: "PBKDF2",
+                    salt: salt,
+                    iterations: 100000,
+                    hash: "SHA-256",
+                },
+                keyMaterial,
+                { name: "AES-CBC", length: 256 }, // Luôn tạo khóa AES 256-bit
+                true,
+                ["encrypt", "decrypt"]
+            );
+        }
+
+        // --- UI & Event Listeners ---
+
+        function displayStatus(element, message, type) {
+            element.textContent = message;
+            element.className = `status-message ${type}`;
+        }
+
+        function updateOnlineUsers(users) {
+            onlineUsersList.innerHTML = ''; // Xóa danh sách cũ
+
+            // Thêm tùy chọn "Chat chung"
+            const generalChatLi = document.createElement('li');
+            generalChatLi.innerHTML = '<span class="online-dot"></span> Chat chung';
+            generalChatLi.id = 'chat-all';
+            if (currentRecipient === "all") {
+                generalChatLi.classList.add('selected');
+            }
+            generalChatLi.addEventListener('click', () => {
+                selectRecipient("all");
+            });
+            onlineUsersList.appendChild(generalChatLi);
+
+
+            users.forEach(user => {
+                if (user !== currentUser) { // Không hiển thị chính mình
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span class="online-dot"></span> ${user}`;
+                    li.id = `chat-${user}`;
+                    if (currentRecipient === user) {
+                        li.classList.add('selected');
+                    }
+                    li.addEventListener('click', () => {
+                        selectRecipient(user);
+                    });
+                    onlineUsersList.appendChild(li);
+                }
+            });
+        }
+
+        function selectRecipient(recipient) {
+            currentRecipient = recipient;
+            currentRecipientDisplay.textContent = recipient === "all" ? "Chat chung" : recipient;
+
+            // Cập nhật lớp 'selected'
+            document.querySelectorAll('#onlineUsersList li').forEach(li => {
+                li.classList.remove('selected');
+            });
+            const selectedLi = document.getElementById(`chat-${recipient}`);
+            if (selectedLi) {
+                selectedLi.classList.add('selected');
+            }
+
+            // Yêu cầu lịch sử tin nhắn cho người nhận mới
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                 ws.send(JSON.stringify({ type: "get_history", recipient: currentRecipient }));
+            }
+        }
+
+        // Hiển thị tin nhắn trong khung chat
+        function displayMessage(messageData, isHistory = false) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+
+            const senderName = messageData.sender;
+            const timestamp = messageData.timestamp;
+            const messageContent = messageData.decrypted_msg;
+
+            if (senderName === currentUser) {
+                messageElement.classList.add('my-message');
+                if (messageData.recipient !== "all") {
+                    messageElement.innerHTML = `<strong>Bạn (đến ${messageData.recipient}):</strong> ${messageContent}<span class="timestamp">${timestamp}</span>`;
+                } else {
+                     messageElement.innerHTML = `<strong>Bạn:</strong> ${messageContent}<span class="timestamp">${timestamp}</span>`;
+                }
+            } else {
+                messageElement.classList.add('other-message');
+                // Nếu là tin nhắn riêng tư và người nhận là mình
+                 if (messageData.recipient !== "all" && messageData.recipient === currentUser) {
+                    messageElement.innerHTML = `<strong>${senderName} (riêng tư):</strong> ${messageContent}<span class="timestamp">${timestamp}</span>`;
+                } else if (messageData.recipient === "all") {
+                    messageElement.innerHTML = `<strong>${senderName}:</strong> ${messageContent}<span class="timestamp">${timestamp}</span>`;
+                } else {
+                    return; // Không hiển thị tin nhắn riêng tư không dành cho mình
+                }
+            }
+
+            if (isHistory) {
+                messagesDiv.prepend(messageElement); // Thêm vào đầu để duy trì thứ tự lịch sử
+            } else {
+                messagesDiv.appendChild(messageElement);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight; // Cuộn xuống cuối
+            }
+        }
+
+        // New function to display files
+        function displayFile(fileData, isHistory = false) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+
+            const senderName = fileData.sender;
+            const timestamp = fileData.timestamp;
+
+            let fileLinkHtml = `<strong>${senderName}:</strong> Đã gửi tệp: `;
+            if (fileData.isHistory) {
+                 // For history, just show the name and a download link (if server supports re-serving)
+                fileLinkHtml += `<a href="#" onclick="alert('Tính năng tải lại tệp từ lịch sử cần được server hỗ trợ.')">${fileData.fileName}</a>`;
+            } else {
+                // For new files, create a downloadable link
+                const downloadLink = document.createElement('a');
+                downloadLink.href = `data:${fileData.fileType};base64,${fileData.fileContent}`;
+                downloadLink.download = fileData.fileName;
+                downloadLink.textContent = fileData.fileName;
+                fileLinkHtml += downloadLink.outerHTML;
+            }
+
+            messageElement.innerHTML = `${fileLinkHtml}<span class="timestamp">${timestamp}</span>`;
+
+            if (senderName === currentUser) {
+                messageElement.classList.add('my-message');
+                if (fileData.recipient !== "all") {
+                    messageElement.innerHTML = `<strong>Bạn (đến ${fileData.recipient}):</strong> Đã gửi tệp: ${fileLinkHtml}<span class="timestamp">${timestamp}</span>`;
+                } else {
+                     messageElement.innerHTML = `<strong>Bạn:</strong> Đã gửi tệp: ${fileLinkHtml}<span class="timestamp">${timestamp}</span>`;
+                }
+            } else {
+                messageElement.classList.add('other-message');
+                 if (fileData.recipient !== "all" && fileData.recipient === currentUser) {
+                    messageElement.innerHTML = `<strong>${senderName} (riêng tư):</strong> Đã gửi tệp: ${fileLinkHtml}<span class="timestamp">${timestamp}</span>`;
+                } else if (fileData.recipient === "all") {
+                    messageElement.innerHTML = `<strong>${senderName}:</strong> Đã gửi tệp: ${fileLinkHtml}<span class="timestamp">${timestamp}</span>`;
+                } else {
+                    return; // Don't display private files not meant for current user
+                }
+            }
+
+
+            if (isHistory) {
+                messagesDiv.prepend(messageElement);
+            } else {
+                messagesDiv.appendChild(messageElement);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        }
+
+
+        loginButton.addEventListener('click', () => {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+            if (username && password && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: "authenticate",
+                    username: username,
+                    password: password
+                }));
+            } else {
+                displayStatus(chatStatus, "Vui lòng nhập tên người dùng và mật khẩu.", 'error');
+            }
+        });
+
+        registerButton.addEventListener('click', () => { // Xử lý sự kiện click cho nút Đăng ký
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+            if (username && password && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: "register", // Loại tin nhắn là "register"
+                    username: username,
+                    password: password
+                }));
+            } else {
+                displayStatus(chatStatus, "Vui lòng nhập tên người dùng và mật khẩu để đăng ký.", 'error');
+            }
+        });
+
+        setAesKeyButton.addEventListener('click', async () => {
+            const keyString = aesKeyInput.value;
+            if (keyString) {
+                try {
+                    // Sử dụng deriveKey để tạo khóa AES 256-bit từ chuỗi người dùng nhập
+                    aesKey = await deriveKey(keyString);
+                    displayStatus(chatStatus, "Khóa AES đã được đặt thành công!", 'success');
+                    sendButton.disabled = false; // Bật nút gửi tin nhắn
+                    aesKeyInput.disabled = true; // Vô hiệu hóa input khóa sau khi đặt
+                } catch (e) {
+                    console.error("Lỗi khi đặt khóa AES:", e);
+                    displayStatus(chatStatus, "Lỗi khi đặt khóa AES. Vui lòng thử lại.", 'error');
+                    sendButton.disabled = true;
+                }
+            } else {
+                displayStatus(chatStatus, "Khóa AES không được để trống.", 'error');
+                sendButton.disabled = true;
+            }
+        });
+
+        logoutButton.addEventListener('click', () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "logout" }));
+            }
+        });
+
+        attachFileButton.addEventListener('click', () => {
+            fileInput.click(); // Trigger the hidden file input click
+        });
+
+        fileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            if (!aesKey) {
+                displayStatus(chatStatus, "Vui lòng đặt mã khóa trước khi gửi tệp.", 'error');
+                return;
+            }
+
+            // Limit file size (e.g., 5MB)
+            const MAX_FILE_SIZE_MB = 5;
+            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                displayStatus(chatStatus, `Kích thước tệp tối đa là ${MAX_FILE_SIZE_MB}MB.`, 'error');
+                fileInput.value = ''; // Clear the selected file
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const fileContentBase64 = e.target.result.split(',')[1]; // Get Base64 part
+
+                // Encrypt file name and content
+                const encryptedFileName = await encryptMessage(file.name);
+                const encryptedFileContent = await encryptMessage(fileContentBase64);
+
+                if (encryptedFileName && encryptedFileContent) {
+                    if (ws && ws.readyState === WebSocket.OPEN && currentUser && aesKey) {
+                        ws.send(JSON.stringify({
+                            type: "send_file",
+                            encrypted_filename: encryptedFileName.encrypted_msg,
+                            iv_filename: encryptedFileName.iv,
+                            encrypted_file_content: encryptedFileContent.encrypted_msg,
+                            iv_file_content: encryptedFileContent.iv,
+                            file_type: file.type, // Send MIME type
+                            recipient: currentRecipient
+                        }));
+                        displayStatus(chatStatus, `Đã gửi tệp: ${file.name}`, 'success');
+                    } else {
+                        displayStatus(chatStatus, "Chưa kết nối, chưa đăng nhập hoặc khóa mã hóa chưa sẵn sàng.", 'error');
+                    }
+                }
+                fileInput.value = ''; // Clear the selected file input
+            };
+            reader.onerror = () => {
+                displayStatus(chatStatus, "Lỗi khi đọc tệp.", 'error');
+            };
+            reader.readAsDataURL(file); // Read file as Data URL (Base64)
+        });
+
+        sendButton.addEventListener('click', async () => {
+            const message = messageInput.value.trim();
+            if (message) {
+                if (ws && ws.readyState === WebSocket.OPEN && currentUser && aesKey) {
+                    const encryptedData = await encryptMessage(message);
+                    if (encryptedData) {
+                        ws.send(JSON.stringify({
+                            type: "send_message",
+                            encrypted_msg: encryptedData.encrypted_msg,
+                            iv: encryptedData.iv,
+                            recipient: currentRecipient // Sử dụng người nhận đã chọn
+                        }));
+                        messageInput.value = ''; // Xóa tin nhắn trong ô nhập
+                        displayStatus(chatStatus, '', 'info'); // Xóa trạng thái lỗi
+                    }
+                } else {
+                    displayStatus(chatStatus, "Chưa kết nối, chưa đăng nhập hoặc khóa mã hóa chưa sẵn sàng.", 'error');
+                }
+            } else {
+                displayStatus(chatStatus, "Tin nhắn không được để trống!", 'error');
+            }
+        });
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { // Gửi khi nhấn Enter, xuống dòng khi nhấn Shift + Enter
+                e.preventDefault();
+                sendButton.click();
+            }
+        });
+
+        // Khởi tạo kết nối WebSocket khi trang tải
+        connectWebSocket();
+    </script>
+</body>
+</html>
